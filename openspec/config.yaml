@@ -1,0 +1,9 @@
+schema: spec-driven
+
+tools:
+  - agents
+
+context: |
+  Language: es
+  All artifacts must be written in es.
+  Keep OpenSpec structural headings and SHALL/MUST keywords in English.

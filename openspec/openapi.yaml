@@ -1,0 +1,186 @@
+openapi: 3.0.3
+info:
+  title: API REST - Microservicio de Retiros en Dólares (USD)
+  description: >
+    Fuente de la Verdad OpenAPI 3.0 para el Microservicio de Retiros en Dólares USD.
+    Construido con Arquitectura Hexagonal y Principios SOLID.
+  version: 1.0.0
+  contact:
+    name: Arquitectura de Microservicios - Billetera Digital
+    email: arquitectura@billeteradigital.com
+
+servers:
+  - url: http://localhost:3004
+    description: Servidor Local del Microservicio de Retiros en USD
+
+tags:
+  - name: Retiros en Dólares (USD)
+    description: Operaciones HTTP REST para la gestión del ciclo de vida de los retiros financieros.
+
+paths:
+  /retiros:
+    post:
+      tags:
+        - Retiros en Dólares (USD)
+      summary: Registrar nueva solicitud de retiro en Dólares (USD)
+      description: >
+        Registra una nueva solicitud de retiro en estado PENDIENTE. Valida el rango permitido
+        ($1.00 USD mínimo - $10,000.00 USD máximo) y publica la solicitud al broker RabbitMQ.
+      operationId: crearSolicitudRetiro
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CrearRetiroDto'
+            example:
+              usuarioId: "d3b07384-d113-46e4-a123-561234567890"
+              montoUSD: 150.50
+              codigoBanco: "CHASEUS33XXX"
+              cuentaDestino: "987654321012"
+              tipoCuenta: "AHORROS"
+      responses:
+        '202':
+          description: Solicitud recibida y en proceso de reserva de fondos.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RespuestaRetiroDto'
+              example:
+                id: "e8a11223-99aa-44bb-88cc-112233445566"
+                usuarioId: "d3b07384-d113-46e4-a123-561234567890"
+                montoUSD: 150.50
+                moneda: "USD"
+                codigoBanco: "CHASEUS33XXX"
+                cuentaDestino: "987654321012"
+                tipoCuenta: "AHORROS"
+                estado: "PENDIENTE"
+                fechaCreacion: "2026-10-06T15:00:00.000Z"
+        '400':
+          description: Error de validación o violaciones del Value Object MontoUSD.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorRespuesta'
+
+  /retiros/{id}:
+    get:
+      tags:
+        - Retiros en Dólares (USD)
+      summary: Consultar detalle de un retiro por ID
+      operationId: obtenerRetiroPorId
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: UUID del retiro
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Detalle del retiro.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RespuestaRetiroDto'
+        '404':
+          description: Retiro no encontrado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorRespuesta'
+
+  /retiros/usuario/{usuarioId}:
+    get:
+      tags:
+        - Retiros en Dólares (USD)
+      summary: Listar historial de retiros de un usuario
+      operationId: obtenerRetirosPorUsuarioId
+      parameters:
+        - name: usuarioId
+          in: path
+          required: true
+          description: UUID del usuario
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Lista de retiros del usuario.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/RespuestaRetiroDto'
+
+components:
+  schemas:
+    CrearRetiroDto:
+      type: object
+      required:
+        - usuarioId
+        - montoUSD
+        - codigoBanco
+        - cuentaDestino
+      properties:
+        usuarioId:
+          type: string
+          format: uuid
+        montoUSD:
+          type: number
+          format: float
+          minimum: 1.0
+          maximum: 10000.0
+        codigoBanco:
+          type: string
+        cuentaDestino:
+          type: string
+        tipoCuenta:
+          type: string
+          default: "AHORROS"
+
+    RespuestaRetiroDto:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        usuarioId:
+          type: string
+          format: uuid
+        montoUSD:
+          type: number
+          format: float
+        moneda:
+          type: string
+          example: "USD"
+        codigoBanco:
+          type: string
+        cuentaDestino:
+          type: string
+        tipoCuenta:
+          type: string
+        estado:
+          type: string
+          enum: [PENDIENTE, EN_PROCESO, COMPLETADO, RECHAZADO, FALLIDO]
+        referenciaBancaria:
+          type: string
+          nullable: true
+        razonFallo:
+          type: string
+          nullable: true
+        fechaCreacion:
+          type: string
+          format: date-time
+
+    ErrorRespuesta:
+      type: object
+      properties:
+        statusCode:
+          type: integer
+        message:
+          type: string
+        error:
+          type: string

@@ -1,0 +1,87 @@
+name: sistema-billetera-microservicios
+
+services:
+  # -------------------------------------------------------------
+  # BROKER DE MENSAJERÍA (RabbitMQ)
+  # -------------------------------------------------------------
+  servicio-mensajeria-rabbitmq:
+    image: rabbitmq:3-management-alpine
+    container_name: broker-mensajeria-rabbitmq
+    ports:
+      - "5672:5672"     # Puerto AMQP para microservicios
+      - "15672:15672"   # Panel Web de Administración (guest/guest)
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+    networks:
+      - red-microservicios
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # -------------------------------------------------------------
+  # BASE DE DATOS POSTGRESQL (Servicio de Retiros USD)
+  # -------------------------------------------------------------
+  postgres-servicio-retiros-usd:
+    image: postgres:15-alpine
+    container_name: contenedor-postgres-servicio-retiros-usd
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgrespassword
+      POSTGRES_DB: db_servicio_retiros_usd
+    ports:
+      - "5432:5432"
+    volumes:
+      - volumen_postgres_data:/var/lib/postgresql/data
+    networks:
+      - red-microservicios
+
+  # -------------------------------------------------------------
+  # SERVICIO DE RETIROS USD (Backend NestJS)
+  # -------------------------------------------------------------
+  servicio-retiros-usd:
+    build:
+      context: ./retiros-usd-service
+      dockerfile: Dockerfile
+    container_name: contenedor-servicio-retiros-usd
+    ports:
+      - "3004:3004"
+    environment:
+      PORT: 3004
+      DB_HOST: postgres-servicio-retiros-usd
+      DB_PORT: 5432
+      DB_USER: postgres
+      DB_PASSWORD: postgrespassword
+      DB_NAME: db_servicio_retiros_usd
+      RABBITMQ_URL: amqp://guest:guest@servicio-mensajeria-rabbitmq:5672
+    depends_on:
+      servicio-mensajeria-rabbitmq:
+        condition: service_healthy
+      postgres-servicio-retiros-usd:
+        condition: service_started
+    networks:
+      - red-microservicios
+
+  # -------------------------------------------------------------
+  # FRONTEND WEB (Angular 17)
+  # -------------------------------------------------------------
+  frontend-web:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: contenedor-frontend-web
+    ports:
+      - "4200:80"
+    depends_on:
+      - servicio-retiros-usd
+    networks:
+      - red-microservicios
+
+networks:
+  red-microservicios:
+    driver: bridge
+
+volumes:
+  volumen_postgres_data:

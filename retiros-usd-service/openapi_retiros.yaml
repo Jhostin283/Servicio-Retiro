@@ -1,0 +1,212 @@
+openapi: 3.0.3
+info:
+  title: API de Microservicio de Retiros en Dólares (USD)
+  description: >
+    Especificación OpenAPI 3.0 para el Microservicio de Retiros en Dólares USD.
+    Desarrollado bajo Arquitectura Hexagonal y Principios SOLID.
+  version: 1.0.0
+  contact:
+    name: Soporte de Arquitectura de Microservicios
+    email: soporte@billeteradigital.com
+
+servers:
+  - url: http://localhost:3004
+    description: Servidor de Desarrollo Local (Microservicio de Retiros)
+
+tags:
+  - name: Retiros en Dólares (USD)
+    description: Operaciones REST para la gestión del ciclo de vida de los retiros financieros en USD.
+
+paths:
+  /retiros:
+    post:
+      tags:
+        - Retiros en Dólares (USD)
+      summary: Registrar solicitud de retiro en Dólares (USD)
+      description: >
+        Registra una nueva solicitud de retiro en estado PENDIENTE. Valida las reglas de negocio
+        del dominio (monto mínimo $1.00 USD, monto máximo $10,000.00 USD) y publica el evento
+        `withdrawal.requested` a RabbitMQ para la reserva de saldo en la billetera.
+      operationId: crearSolicitudRetiro
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CrearRetiroDto'
+            example:
+              usuarioId: "d3b07384-d113-46e4-a123-561234567890"
+              montoUSD: 150.50
+              codigoBanco: "CHASEUS33XXX"
+              cuentaDestino: "987654321012"
+              tipoCuenta: "AHORROS"
+      responses:
+        '202':
+          description: Solicitud de retiro recibida y puesta en proceso.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RespuestaRetiroDto'
+              example:
+                id: "e8a11223-99aa-44bb-88cc-112233445566"
+                usuarioId: "d3b07384-d113-46e4-a123-561234567890"
+                montoUSD: 150.50
+                moneda: "USD"
+                codigoBanco: "CHASEUS33XXX"
+                cuentaDestino: "987654321012"
+                tipoCuenta: "AHORROS"
+                estado: "PENDIENTE"
+                fechaCreacion: "2026-10-06T14:55:00.000Z"
+        '400':
+          description: Datos de entrada inválidos o reglas de negocio violadas (ej. monto fuera de rango USD).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorRespuesta'
+
+  /retiros/{id}:
+    get:
+      tags:
+        - Retiros en Dólares (USD)
+      summary: Consultar detalle y estado de un retiro por ID
+      operationId: obtenerRetiroPorId
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: UUID único del retiro
+          schema:
+            type: string
+            format: uuid
+          example: "e8a11223-99aa-44bb-88cc-112233445566"
+      responses:
+        '200':
+          description: Detalle encontrado del retiro.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RespuestaRetiroDto'
+        '404':
+          description: Retiro no encontrado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorRespuesta'
+
+  /retiros/usuario/{usuarioId}:
+    get:
+      tags:
+        - Retiros en Dólares (USD)
+      summary: Listar historial de retiros de un usuario
+      operationId: obtenerRetirosPorUsuarioId
+      parameters:
+        - name: usuarioId
+          in: path
+          required: true
+          description: UUID del usuario
+          schema:
+            type: string
+            format: uuid
+          example: "d3b07384-d113-46e4-a123-561234567890"
+      responses:
+        '200':
+          description: Lista de retiros asociados al usuario.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/RespuestaRetiroDto'
+
+components:
+  schemas:
+    CrearRetiroDto:
+      type: object
+      required:
+        - usuarioId
+        - montoUSD
+        - codigoBanco
+        - cuentaDestino
+      properties:
+        usuarioId:
+          type: string
+          format: uuid
+          description: UUID v4 del usuario
+          example: "d3b07384-d113-46e4-a123-561234567890"
+        montoUSD:
+          type: number
+          format: float
+          minimum: 1.0
+          maximum: 10000.0
+          description: Monto a retirar en Dólares (USD)
+          example: 150.50
+        codigoBanco:
+          type: string
+          description: Código SWIFT o Routing del banco de destino
+          example: "CHASEUS33XXX"
+        cuentaDestino:
+          type: string
+          description: Número de cuenta bancaria internacional o CLABE
+          example: "987654321012"
+        tipoCuenta:
+          type: string
+          default: "AHORROS"
+          enum: [AHORROS, CORRIENTE]
+          description: Tipo de cuenta bancaria
+          example: "AHORROS"
+
+    RespuestaRetiroDto:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: "e8a11223-99aa-44bb-88cc-112233445566"
+        usuarioId:
+          type: string
+          format: uuid
+          example: "d3b07384-d113-46e4-a123-561234567890"
+        montoUSD:
+          type: number
+          format: float
+          example: 150.50
+        moneda:
+          type: string
+          example: "USD"
+        codigoBanco:
+          type: string
+          example: "CHASEUS33XXX"
+        cuentaDestino:
+          type: string
+          example: "987654321012"
+        tipoCuenta:
+          type: string
+          example: "AHORROS"
+        estado:
+          type: string
+          enum: [PENDIENTE, EN_PROCESO, COMPLETADO, RECHAZADO, FALLIDO]
+          example: "PENDIENTE"
+        referenciaBancaria:
+          type: string
+          nullable: true
+          example: "ACH-USD-987654"
+        razonFallo:
+          type: string
+          nullable: true
+          example: "Cuenta bancaria inactiva"
+        fechaCreacion:
+          type: string
+          format: date-time
+
+    ErrorRespuesta:
+      type: object
+      properties:
+        statusCode:
+          type: integer
+          example: 400
+        message:
+          type: string
+          example: "El monto mínimo de retiro es $1.00 USD."
+        error:
+          type: string
+          example: "Bad Request"

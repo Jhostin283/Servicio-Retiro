@@ -1,0 +1,138 @@
+asyncapi: 2.6.0
+info:
+  title: Event Spec - Microservicio de Retiros & Billetera (RabbitMQ AsyncAPI)
+  version: 1.0.0
+  description: >
+    Fuente de la Verdad AsyncAPI para los contratos de eventos de mensajería asíncrona
+    intercambiados entre el Microservicio de Retiros y el Microservicio de Billetera vía RabbitMQ.
+
+servers:
+  rabbitmq:
+    url: amqp://guest:guest@localhost:5672
+    protocol: amqp
+    description: Broker de Mensajería RabbitMQ (AMQP 0-9-1)
+
+channels:
+  withdrawal_queue:
+    description: Cola receptora de eventos dirigidos al Microservicio de Retiros
+    publish:
+      summary: Eventos recibidos por el Microservicio de Retiros
+      message:
+        oneOf:
+          - $ref: '#/components/messages/WithdrawalFundsReserved'
+          - $ref: '#/components/messages/WithdrawalFundsRejected'
+
+  wallet_queue:
+    description: Cola receptora de eventos dirigidos al Microservicio de Billetera
+    subscribe:
+      summary: Eventos emitidos por el Microservicio de Retiros
+      message:
+        oneOf:
+          - $ref: '#/components/messages/WithdrawalRequested'
+          - $ref: '#/components/messages/WithdrawalCompleted'
+          - $ref: '#/components/messages/WithdrawalFailed'
+
+components:
+  messages:
+    WithdrawalRequested:
+      name: withdrawal.requested
+      title: Solicitud de Retiro Creada
+      summary: Emitido por Retiros cuando el usuario registra una solicitud. La Billetera debe reservar el saldo.
+      payload:
+        type: object
+        required:
+          - withdrawalId
+          - userId
+          - amountUSD
+          - currency
+        properties:
+          withdrawalId:
+            type: string
+            format: uuid
+          userId:
+            type: string
+            format: uuid
+          amountUSD:
+            type: number
+            minimum: 1.0
+          currency:
+            type: string
+            example: "USD"
+
+    WithdrawalFundsReserved:
+      name: withdrawal.funds_reserved
+      title: Fondos Reservados Exitosamente en Billetera
+      summary: Emitido por la Billetera para notificar que el saldo en USD fue congelado.
+      payload:
+        type: object
+        required:
+          - withdrawalId
+          - userId
+          - amountUSD
+        properties:
+          withdrawalId:
+            type: string
+            format: uuid
+          userId:
+            type: string
+            format: uuid
+          amountUSD:
+            type: number
+
+    WithdrawalFundsRejected:
+      name: withdrawal.funds_rejected
+      title: Fondos Rechazados por la Billetera
+      summary: Emitido por la Billetera cuando el usuario no cuenta con saldo suficiente en USD.
+      payload:
+        type: object
+        required:
+          - withdrawalId
+          - reason
+        properties:
+          withdrawalId:
+            type: string
+            format: uuid
+          reason:
+            type: string
+            example: "Saldo insuficiente en billetera"
+
+    WithdrawalCompleted:
+      name: withdrawal.completed
+      title: Transferencia Bancaria Completada Exitosamente
+      summary: Emitido por Retiros cuando la pasarela bancaria confirma la transferencia ACH/SWIFT en USD.
+      payload:
+        type: object
+        required:
+          - withdrawalId
+          - bankReference
+        properties:
+          withdrawalId:
+            type: string
+            format: uuid
+          bankReference:
+            type: string
+            example: "ACH-USD-987654"
+
+    WithdrawalFailed:
+      name: withdrawal.failed
+      title: Transferencia Bancaria Fallida (Reembolsar Saldo)
+      summary: Emitido por Retiros cuando el banco rechaza la cuenta de destino para devolver el saldo.
+      payload:
+        type: object
+        required:
+          - withdrawalId
+          - userId
+          - amountUSD
+          - reason
+        properties:
+          withdrawalId:
+            type: string
+            format: uuid
+          userId:
+            type: string
+            format: uuid
+          amountUSD:
+            type: number
+          reason:
+            type: string
+            example: "Cuenta bancaria inexistente o inactiva"

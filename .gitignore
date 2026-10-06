@@ -1,0 +1,23 @@
+# Node.js & Dependencies
+node_modules/
+dist/
+build/
+coverage/
+.npm
+*.log
+
+# Environment Variables & Secrets
+.env
+.env.local
+.env.development
+.env.production
+
+# IDE & System Files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Documentation Exclusions (Archivos excluidos del control de versiones)
+docs/audit/
+docs/git/integration-guide.md

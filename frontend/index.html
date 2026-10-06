@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="es" class="h-full bg-slate-900 text-slate-100">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>💵 Panel de Pruebas Frontend - Microservicio de Retiros en Dólares (USD)</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- FontAwesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#f0fdf4',
+              500: '#22c55e',
+              600: '#16a34a',
+              700: '#15803d',
+            }
+          }
+        }
+      }
+    }
+  </script>
+</head>
+<body class="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans antialiased">
+
+  <!-- Header / Nav -->
+  <header class="bg-slate-900 border-b border-slate-800 sticky top-0 z-50">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+      <div class="flex items-center space-x-3">
+        <div class="bg-emerald-500/10 p-2 rounded-xl border border-emerald-500/20 text-emerald-400">
+          <i class="fa-solid fa-money-bill-transfer text-2xl"></i>
+        </div>
+        <div>
+          <h1 class="text-lg font-bold text-white leading-none">Billetera Digital USD - Cliente Web Frontend</h1>
+          <p class="text-xs text-slate-400 mt-1">Aplicación Web Independiente para Pruebas del Microservicio de Retiros</p>
+        </div>
+      </div>
+      <div class="flex items-center space-x-3">
+        <a href="http://localhost:3004/api/docs" target="_blank" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-emerald-400 text-xs font-medium rounded-lg border border-slate-700 transition flex items-center gap-1.5">
+          <i class="fa-solid fa-book-open"></i> Swagger OpenAPI
+        </a>
+        <a href="http://localhost:15672" target="_blank" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-orange-400 text-xs font-medium rounded-lg border border-slate-700 transition flex items-center gap-1.5">
+          <i class="fa-solid fa-server"></i> RabbitMQ Broker
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Container -->
+  <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 grid grid-cols-1 lg:grid-cols-12 gap-8">
+    
+    <!-- Column 1: Form & Presets (7 cols) -->
+    <section class="lg:col-span-7 space-y-6">
+      
+      <!-- Card Form -->
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl relative overflow-hidden">
+        <div class="flex items-center justify-between border-b border-slate-800 pb-4 mb-6">
+          <h2 class="text-base font-semibold text-white flex items-center gap-2">
+            <i class="fa-solid fa-paper-plane text-emerald-400"></i>
+            Nueva Solicitud de Retiro (POST /retiros)
+          </h2>
+          <span class="px-2.5 py-1 bg-emerald-500/10 text-emerald-400 text-xs font-mono rounded-md border border-emerald-500/20">moneda: USD</span>
+        </div>
+
+        <!-- Rapid Preset Actions -->
+        <div class="mb-6 bg-slate-950/60 p-3.5 rounded-xl border border-slate-800">
+          <p class="text-xs font-medium text-slate-400 mb-2 flex items-center gap-1.5">
+            <i class="fa-solid fa-bolt text-amber-400"></i> Botones de Simulación Rápida:
+          </p>
+          <div class="flex flex-wrap gap-2">
+            <button onclick="cargarPreset('exito')" class="text-xs bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 px-3 py-1.5 rounded-lg transition flex items-center gap-1.5">
+              <i class="fa-solid fa-circle-check"></i> Retiro Exitoso ($150.50 USD)
+            </button>
+            <button onclick="cargarPreset('fallo_banco')" class="text-xs bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 border border-rose-500/30 px-3 py-1.5 rounded-lg transition flex items-center gap-1.5">
+              <i class="fa-solid fa-triangle-exclamation"></i> Fallo Bancario (Cuenta 0000)
+            </button>
+            <button onclick="cargarPreset('monto_invalido')" class="text-xs bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border border-amber-500/30 px-3 py-1.5 rounded-lg transition flex items-center gap-1.5">
+              <i class="fa-solid fa-ban"></i> Monto Inválido (< $1 USD)
+            </button>
+          </div>
+        </div>
+
+        <!-- Form Form Fields -->
+        <form id="formRetiro" onsubmit="enviarRetiro(event)" class="space-y-4">
+          
+          <div>
+            <label class="block text-xs font-medium text-slate-300 mb-1">ID del Usuario (UUID):</label>
+            <input type="text" id="usuarioId" required class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-emerald-500 font-mono" placeholder="d3b07384-d113-46e4-a123-561234567890">
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label class="block text-xs font-medium text-slate-300 mb-1">Monto a Retirar ($USD):</label>
+              <div class="relative">
+                <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center text-slate-500 text-sm font-semibold">$</span>
+                <input type="number" step="0.01" min="0.01" id="montoUSD" required class="w-full bg-slate-950 border border-slate-800 rounded-xl pl-8 pr-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-emerald-500 font-mono" placeholder="150.50">
+              </div>
+              <p class="text-[11px] text-slate-500 mt-1">Rango permitido: $1.00 USD - $10,000.00 USD</p>
+            </div>
+
+            <div>
+              <label class="block text-xs font-medium text-slate-300 mb-1">Código del Banco (SWIFT/Routing):</label>
+              <input type="text" id="codigoBanco" required class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-emerald-500 font-mono" placeholder="CHASEUS33XXX">
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label class="block text-xs font-medium text-slate-300 mb-1">Número de Cuenta Destino:</label>
+              <input type="text" id="cuentaDestino" required class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-emerald-500 font-mono" placeholder="987654321012">
+              <p class="text-[11px] text-slate-500 mt-1">Usa <code class="text-rose-400">0000</code> para simular un rechazo bancario ACH.</p>
+            </div>
+
+            <div>
+              <label class="block text-xs font-medium text-slate-300 mb-1">Tipo de Cuenta:</label>
+              <select id="tipoCuenta" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-emerald-500">
+                <option value="AHORROS">AHORROS</option>
+                <option value="CORRIENTE">CORRIENTE</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="pt-2">
+            <button type="submit" id="btnEnviar" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-semibold py-3 px-4 rounded-xl shadow-lg transition flex items-center justify-center gap-2 text-sm">
+              <i class="fa-solid fa-paper-plane"></i> Enviar Solicitud de Retiro
+            </button>
+          </div>
+        </form>
+      </div>
+
+    </section>
+
+    <!-- Column 2: Response & History (5 cols) -->
+    <section class="lg:col-span-5 space-y-6">
+
+      <!-- Response Card -->
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl">
+        <div class="flex items-center justify-between border-b border-slate-800 pb-4 mb-4">
+          <h3 class="text-sm font-semibold text-white flex items-center gap-2">
+            <i class="fa-solid fa-code text-indigo-400"></i>
+            Respuesta HTTP / Evento en Vivo
+          </h3>
+          <span id="badgeStatusCode" class="hidden px-2 py-0.5 text-xs font-mono rounded"></span>
+        </div>
+
+        <div id="contenedorRespuesta" class="min-h-[160px] bg-slate-950 p-4 rounded-xl border border-slate-800 font-mono text-xs overflow-x-auto text-slate-400 flex flex-col justify-center items-center">
+          <i class="fa-solid fa-hourglass-start text-slate-600 text-2xl mb-2"></i>
+          <span>Esperando que envíes una solicitud...</span>
+        </div>
+      </div>
+
+      <!-- Quick Lookup History Card -->
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl">
+        <div class="flex items-center justify-between border-b border-slate-800 pb-4 mb-4">
+          <h3 class="text-sm font-semibold text-white flex items-center gap-2">
+            <i class="fa-solid fa-clock-rotate-left text-sky-400"></i>
+            Historial del Usuario (GET /retiros/usuario/:id)
+          </h3>
+          <button onclick="consultarHistorial()" class="text-xs bg-slate-800 hover:bg-slate-700 text-slate-300 px-2.5 py-1 rounded-lg border border-slate-700 transition">
+            <i class="fa-solid fa-rotate"></i> Actualizar
+          </button>
+        </div>
+
+        <div id="contenedorHistorial" class="space-y-3 max-h-[300px] overflow-y-auto pr-1">
+          <p class="text-xs text-slate-500 text-center py-6">Haz clic en actualizar para consultar las transacciones del usuario.</p>
+        </div>
+      </div>
+
+    </section>
+
+  </main>
+
+  <!-- Notification Toast -->
+  <div id="toast" class="fixed bottom-6 right-6 px-4 py-3 rounded-xl shadow-2xl border text-sm font-medium transition-all transform translate-y-20 opacity-0 flex items-center gap-2 z-50"></div>
+
+  <script>
+    const API_BASE_URL = "http://localhost:3004";
+    const DEFAULT_USER_ID = "d3b07384-d113-46e4-a123-561234567890";
+    
+    document.getElementById('usuarioId').value = DEFAULT_USER_ID;
+    document.getElementById('montoUSD').value = 150.50;
+
+    function cargarPreset(tipo) {
+      const elUser = document.getElementById('usuarioId');
+      const elMonto = document.getElementById('montoUSD');
+      const elBanco = document.getElementById('codigoBanco');
+      const elCuenta = document.getElementById('cuentaDestino');
+      const elTipo = document.getElementById('tipoCuenta');
+
+      elUser.value = DEFAULT_USER_ID;
+
+      if (tipo === 'exito') {
+        elMonto.value = 150.50;
+        elBanco.value = "CHASEUS33XXX";
+        elCuenta.value = "987654321012";
+        elTipo.value = "AHORROS";
+        mostrarToast("Preset cargado: Retiro Exitoso ($150.50 USD)", "info");
+      } else if (tipo === 'fallo_banco') {
+        elMonto.value = 50.00;
+        elBanco.value = "WELLSFARGO";
+        elCuenta.value = "0000";
+        elTipo.value = "CORRIENTE";
+        mostrarToast("Preset cargado: Fallo Bancario (Cuenta 0000)", "warning");
+      } else if (tipo === 'monto_invalido') {
+        elMonto.value = 0.50;
+        elBanco.value = "CHASEUS33XXX";
+        elCuenta.value = "987654321012";
+        mostrarToast("Preset cargado: Monto menor al permitido ($0.50 USD)", "danger");
+      }
+    }
+
+    async function enviarRetiro(event) {
+      event.preventDefault();
+
+      const btn = document.getElementById('btnEnviar');
+      btn.disabled = true;
+      btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Procesando solicitud...`;
+
+      const payload = {
+        usuarioId: document.getElementById('usuarioId').value.trim(),
+        montoUSD: parseFloat(document.getElementById('montoUSD').value),
+        codigoBanco: document.getElementById('codigoBanco').value.trim(),
+        cuentaDestino: document.getElementById('cuentaDestino').value.trim(),
+        tipoCuenta: document.getElementById('tipoCuenta').value,
+      };
+
+      const contRes = document.getElementById('contenedorRespuesta');
+      const badgeStatus = document.getElementById('badgeStatusCode');
+
+      try {
+        const response = await fetch(`${API_BASE_URL}/retiros`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+
+        const data = await response.json();
+
+        badgeStatus.classList.remove('hidden', 'bg-emerald-500/20', 'text-emerald-400', 'bg-rose-500/20', 'text-rose-400');
+        if (response.ok) {
+          badgeStatus.classList.add('bg-emerald-500/20', 'text-emerald-400', 'border', 'border-emerald-500/30');
+          badgeStatus.textContent = `${response.status} ACCEPTED`;
+          mostrarToast("¡Solicitud enviada con éxito!", "success");
+        } else {
+          badgeStatus.classList.add('bg-rose-500/20', 'text-rose-400', 'border', 'border-rose-500/30');
+          badgeStatus.textContent = `${response.status} BAD REQUEST`;
+          mostrarToast("Error en la solicitud HTTP", "danger");
+        }
+
+        contRes.className = "bg-slate-950 p-4 rounded-xl border border-slate-800 font-mono text-xs overflow-x-auto text-slate-200 leading-relaxed";
+        contRes.innerHTML = `<pre class="text-emerald-400">${JSON.stringify(data, null, 2)}</pre>`;
+
+        setTimeout(() => consultarHistorial(), 1000);
+
+      } catch (err) {
+        contRes.innerHTML = `<span class="text-rose-400">Fallo de conexión al servidor local (${API_BASE_URL}): ${err.message}</span>`;
+        mostrarToast("No se pudo conectar al servidor /retiros", "danger");
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = `<i class="fa-solid fa-paper-plane"></i> Enviar Solicitud de Retiro`;
+      }
+    }
+
+    async function consultarHistorial() {
+      const userId = document.getElementById('usuarioId').value.trim() || DEFAULT_USER_ID;
+      const contHist = document.getElementById('contenedorHistorial');
+
+      try {
+        const response = await fetch(`${API_BASE_URL}/retiros/usuario/${userId}`);
+        if (!response.ok) throw new Error("Error al consultar el historial");
+
+        const data = await response.json();
+
+        if (data.length === 0) {
+          contHist.innerHTML = `<p class="text-xs text-slate-500 text-center py-4">No se encontraron retiros para este usuario.</p>`;
+          return;
+        }
+
+        contHist.innerHTML = data.map(r => {
+          let badgeColor = 'bg-amber-500/10 text-amber-400 border-amber-500/30';
+          if (r.estado === 'COMPLETADO') badgeColor = 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30';
+          if (r.estado === 'FALLIDO' || r.estado === 'RECHAZADO') badgeColor = 'bg-rose-500/10 text-rose-400 border-rose-500/30';
+          if (r.estado === 'EN_PROCESO') badgeColor = 'bg-sky-500/10 text-sky-400 border-sky-500/30';
+
+          return `
+            <div class="bg-slate-950 p-3 rounded-xl border border-slate-800/80 flex flex-col gap-1 text-xs">
+              <div class="flex items-center justify-between">
+                <span class="font-semibold text-white">$${Number(r.montoUSD).toFixed(2)} USD</span>
+                <span class="px-2 py-0.5 text-[10px] font-medium border rounded ${badgeColor}">${r.estado}</span>
+              </div>
+              <div class="text-[11px] text-slate-400 flex items-center justify-between">
+                <span><i class="fa-solid fa-building-columns text-slate-500"></i> ${r.codigoBanco} (${r.cuentaDestino})</span>
+                <span class="text-[10px] text-slate-500">${new Date(r.fechaCreacion).toLocaleTimeString()}</span>
+              </div>
+              ${r.referenciaBancaria ? `<div class="text-[10px] text-emerald-400">Ref: ${r.referenciaBancaria}</div>` : ''}
+              ${r.razonFallo ? `<div class="text-[10px] text-rose-400">Razón: ${r.razonFallo}</div>` : ''}
+            </div>
+          `;
+        }).join('');
+
+      } catch (err) {
+        contHist.innerHTML = `<p class="text-xs text-rose-400 text-center py-2">Error cargando historial.</p>`;
+      }
+    }
+
+    function mostrarToast(mensaje, tipo = "info") {
+      const toast = document.getElementById('toast');
+      toast.textContent = mensaje;
+      toast.className = `fixed bottom-6 right-6 px-4 py-3 rounded-xl shadow-2xl border text-sm font-medium transition-all transform z-50 flex items-center gap-2 translate-y-0 opacity-100 `;
+      
+      if (tipo === 'success') toast.classList.add('bg-emerald-950', 'text-emerald-300', 'border-emerald-500/40');
+      else if (tipo === 'danger') toast.classList.add('bg-rose-950', 'text-rose-300', 'border-rose-500/40');
+      else if (tipo === 'warning') toast.classList.add('bg-amber-950', 'text-amber-300', 'border-amber-500/40');
+      else toast.classList.add('bg-slate-800', 'text-slate-200', 'border-slate-700');
+
+      setTimeout(() => {
+        toast.classList.add('translate-y-20', 'opacity-0');
+      }, 3000);
+    }
+  </script>
+</body>
+</html>

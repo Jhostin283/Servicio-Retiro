@@ -1,0 +1,41 @@
+### 1. Registrar una solicitud de retiro válida en Dólares ($150.50 USD)
+POST http://localhost:3004/retiros
+Content-Type: application/json
+
+{
+  "usuarioId": "d3b07384-d113-46e4-a123-561234567890",
+  "montoUSD": 150.50,
+  "codigoBanco": "CHASEUS33XXX",
+  "cuentaDestino": "987654321012",
+  "tipoCuenta": "AHORROS"
+}
+
+### 2. Consultar detalle de retiro por ID
+# Reemplazar {id} con el ID devuelto en la petición anterior
+GET http://localhost:3004/retiros/{id}
+
+### 3. Listar historial de retiros de un usuario en USD
+GET http://localhost:3004/retiros/usuario/d3b07384-d113-46e4-a123-561234567890
+
+### 4. Simular un fallo bancario (Cuenta '0000')
+POST http://localhost:3004/retiros
+Content-Type: application/json
+
+{
+  "usuarioId": "d3b07384-d113-46e4-a123-561234567890",
+  "montoUSD": 50.00,
+  "codigoBanco": "WELLSFARGO",
+  "cuentaDestino": "0000",
+  "tipoCuenta": "CORRIENTE"
+}
+
+### 5. Probar regla de negocio: Monto menor al mínimo ($0.50 USD -> Debe fallar 400)
+POST http://localhost:3004/retiros
+Content-Type: application/json
+
+{
+  "usuarioId": "d3b07384-d113-46e4-a123-561234567890",
+  "montoUSD": 0.50,
+  "codigoBanco": "CHASEUS33XXX",
+  "cuentaDestino": "987654321012"
+}
