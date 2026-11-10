@@ -1,6 +1,6 @@
 # OpenSpec: Fuente de la Verdad (Source of Truth)
 
-Este directorio **`openspec/`** constituye la **Única Fuente de la Verdad (Single Source of Truth)** para el diseño de contratos de comunicación síncrona (REST), asíncrona (Eventos AMQP / RabbitMQ) y especificaciones de comportamiento (**Spec-Driven Development - SDD**) del sistema de retiros en dólares USD.
+Este directorio **`openspec/`** constituye la **Única Fuente de la Verdad (Single Source of Truth)** para el diseño de contratos de comunicación HTTP y especificaciones de comportamiento (**Spec-Driven Development - SDD**) del sistema de retiros en dólares USD.
 
 ---
 
@@ -8,9 +8,9 @@ Este directorio **`openspec/`** constituye la **Única Fuente de la Verdad (Sing
 
 | ID Historia | Historia de Usuario | Funcionalidad (Spec Path) | Requisitos Vinculados |
 |---|---|---|---|
-| **US-RET-01** | **Como cliente**, quiero solicitar un retiro en USD, para transferir dinero a mi cuenta de destino. | [`openspec/specs/creacion-retiro/spec.md`](./specs/creacion-retiro/spec.md) | `REQ-RET-001`<br>`REQ-RET-002` |
-| **US-CON-01** | **Como usuario**, quiero consultar el estado de mi retiro e historial, para verificar mis fondos. | [`openspec/specs/consulta-retiro/spec.md`](./specs/consulta-retiro/spec.md) | `REQ-CON-001`<br>`REQ-CON-002` |
-| **US-EVT-01** | **Como sistema/administrador**, quiero procesar asíncronamente las reservas y la pasarela bancaria, para completar o rechazar los retiros. | [`openspec/specs/procesamiento-eventos/spec.md`](./specs/procesamiento-eventos/spec.md) | `REQ-EVT-001`<br>`REQ-EVT-002` |
+| **US-RET-01** | **Como cliente**, quiero solicitar un retiro en USD, para transferir dinero a mi cuenta de destino. | [`openspec/specs/creacion-retiro/spec.md`](./specs/creacion-retiro/spec.md) | `REQ-RET-001`<br>`REQ-RET-002`<br>`REQ-RET-003` |
+| **US-CON-01** | **Como usuario**, quiero consultar el estado de mi retiro e historial, para verificar mis fondos. | [`openspec/specs/consulta-retiro/spec.md`](./specs/consulta-retiro/spec.md) | `REQ-CON-001`<br>`REQ-CON-002`<br>`REQ-CON-003` |
+| **US-PRO-01** | **Como sistema/administrador**, quiero procesar el débito de billetera HTTP y la pasarela bancaria, para completar o rechazar los retiros. | [`openspec/specs/procesamiento-retiro/spec.md`](./specs/procesamiento-retiro/spec.md) | `Procesamiento HTTP de billetera` |
 
 ---
 
@@ -18,8 +18,7 @@ Este directorio **`openspec/`** constituye la **Única Fuente de la Verdad (Sing
 
 | Archivo | Estándar | Descripción |
 |---|---|---|
-| [`openapi.yaml`](./openapi.yaml) | **OpenAPI 3.0.3** | Especificación REST pública/privada de microservicios NestJS y Angular |
-| [`asyncapi.yaml`](./asyncapi.yaml) | **AsyncAPI 2.6.0** | Contratos de eventos asíncronos publicados y consumidos vía RabbitMQ |
+| [`openapi_retiros.yaml`](../retiros-usd-service/openapi_retiros.yaml) | **OpenAPI 3.0.3** | Contrato REST exportado desde la documentación que genera NestJS. Regenerar con `npm run generar:openapi` tras cambiar rutas o DTO. |
 | [`specs/`](./specs/) | **OpenSpec SDD** | Especificaciones funcionales desglosadas por Historia de Usuario |
 
 ---
@@ -30,4 +29,4 @@ Este directorio **`openspec/`** constituye la **Única Fuente de la Verdad (Sing
 2. **Límites Financieros**:
    - **Monto Mínimo de Retiro**: `$1.00 USD`
    - **Monto Máximo de Retiro**: `$10,000.00 USD`
-3. **Idiomas y Nombres**: Todos los endpoints, esquemas DTO, estados del dominio (`PENDIENTE`, `RESERVADO`, `COMPLETADO`, `RECHAZADO`, `FALLIDO`) y eventos están documentados formalmente en **Español**.
+3. **Estados del flujo HTTP**: `PENDIENTE`, `COMPLETADO`, `RECHAZADO` y `FALLIDO`. El enum conserva `RESERVADO` por compatibilidad con datos anteriores; el flujo actual no lo asigna.

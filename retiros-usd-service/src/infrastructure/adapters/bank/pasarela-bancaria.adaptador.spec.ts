@@ -10,7 +10,7 @@ describe('AdaptadorPasarelaBancaria (Infraestructura)', () => {
   });
 
   it('debe retornar transferencia exitosa para cuentas normales', async () => {
-    const retiro = Retiro.crearNuevo('usr-1', MontoUSD.crear(100), 'CHASE', '987654321');
+    const retiro = Retiro.crearNuevo('usr-1', MontoUSD.crear(100), '987654321');
     const res = await adaptador.procesarTransferenciaUSD(retiro);
 
     expect(res.exitosa).toBe(true);
@@ -18,7 +18,7 @@ describe('AdaptadorPasarelaBancaria (Infraestructura)', () => {
   });
 
   it('debe retornar rechazo bancario si la cuenta destino es "0000"', async () => {
-    const retiro = Retiro.crearNuevo('usr-1', MontoUSD.crear(50), 'WELLSFARGO', '0000');
+    const retiro = Retiro.crearNuevo('usr-1', MontoUSD.crear(50), '0000');
     const res = await adaptador.procesarTransferenciaUSD(retiro);
 
     expect(res.exitosa).toBe(false);

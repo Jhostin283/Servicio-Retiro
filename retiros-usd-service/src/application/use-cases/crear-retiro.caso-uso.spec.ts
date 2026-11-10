@@ -1,47 +1,53 @@
 import { CrearRetiroCasoUso } from './crear-retiro.caso-uso';
-import { RepositorioRetiroPuerto } from '../../domain/ports/output/repositorio-retiro.puerto';
-import { PublicadorEventosPuerto } from '../../domain/ports/output/publicador-eventos.puerto';
-import { CrearRetiroDto } from '../dtos/crear-retiro.dto';
 import { Retiro } from '../../domain/models/retiro.modelo';
-import { MontoUSD } from '../../domain/value-objects/monto-usd.vo';
+import { EstadoRetiro } from '../../domain/enums/estado-retiro.enum';
 
-describe('CrearRetiroCasoUso (Capa de Aplicación)', () => {
-  let casoUso: CrearRetiroCasoUso;
-  let mockRepositorio: jest.Mocked<RepositorioRetiroPuerto>;
-  let mockPublicador: jest.Mocked<PublicadorEventosPuerto>;
-
+describe('CrearRetiroCasoUso con billetera USD HTTP', () => {
+  const dto = { usuarioId: 'mariaperez', montoUSD: 150.5, cuentaDestino: '987654321' };
+  let repo: any;
+  let billetera: any;
+  let banco: any;
+  let caso: CrearRetiroCasoUso;
   beforeEach(() => {
-    mockRepositorio = {
-      guardar: jest.fn().mockImplementation((r: Retiro) => Promise.resolve(r)),
-      buscarPorId: jest.fn(),
-      buscarPorUsuarioId: jest.fn(),
-      actualizar: jest.fn(),
-    };
-
-    mockPublicador = {
-      publicarRetiroSolicitado: jest.fn().mockResolvedValue(undefined),
-      publicarRetiroCompletado: jest.fn().mockResolvedValue(undefined),
-      publicarRetiroFallido: jest.fn().mockResolvedValue(undefined),
-    };
-
-    casoUso = new CrearRetiroCasoUso(mockRepositorio, mockPublicador);
+    repo = { guardar: jest.fn(async (r: Retiro) => r), actualizar: jest.fn(async (r: Retiro) => r) };
+    billetera = { debitar: jest.fn() };
+    banco = { procesarTransferenciaUSD: jest.fn() };
+    caso = new CrearRetiroCasoUso(repo, billetera, banco);
   });
-
-  it('debe crear y persistir un retiro en USD y publicar el evento de solicitud', async () => {
-    const dto: CrearRetiroDto = {
-      usuarioId: '81097d3f-7193-44e3-b20e-d9aeb96b7192',
-      montoUSD: 150.5,
-      codigoBanco: 'CHASEUS33XXX',
-      cuentaDestino: '987654321012',
-      tipoCuenta: 'AHORROS',
-    };
-
-    const resultado = await casoUso.ejecutar(dto);
-
-    expect(resultado).toBeDefined();
-    expect(resultado.usuarioId).toBe(dto.usuarioId);
-    expect(resultado.montoUSD.obtenerValor()).toBe(150.5);
-    expect(mockRepositorio.guardar).toHaveBeenCalledTimes(1);
-    expect(mockPublicador.publicarRetiroSolicitado).toHaveBeenCalledWith(resultado);
+  it('registra el débito y completa el retiro después del desembolso', async () => {
+    billetera.debitar.mockResolvedValue({ estado: 'DEBITADO', movimientoId: 'mov-1', billeteraId: 'wallet-1' });
+    banco.procesarTransferenciaUSD.mockResolvedValue({ exitosa: true, referenciaBancaria: 'ref-1' });
+    const result = await caso.ejecutar(dto);
+    expect(result.estado).toBe(EstadoRetiro.COMPLETADO);
+    expect(result.movimientoBilleteraId).toBe('mov-1');
+    expect(billetera.debitar).toHaveBeenCalledWith('mariaperez', 150.5);
+    expect(repo.actualizar).toHaveBeenCalledTimes(2);
+    expect(repo.actualizar.mock.invocationCallOrder[0]).toBeLessThan(banco.procesarTransferenciaUSD.mock.invocationCallOrder[0]);
+  });
+  it('rechaza fondos insuficientes sin llamar al banco', async () => {
+    billetera.debitar.mockResolvedValue({ estado: 'RECHAZADO', razon: 'Saldo insuficiente' });
+    expect((await caso.ejecutar(dto)).estado).toBe(EstadoRetiro.RECHAZADO);
+    expect(banco.procesarTransferenciaUSD).not.toHaveBeenCalled();
+  });
+  it('mantiene pendiente un débito incierto sin reintentar ni llamar al banco', async () => {
+    billetera.debitar.mockResolvedValue({ estado: 'DESCONOCIDO', razon: 'Revisión manual necesaria' });
+    const result = await caso.ejecutar(dto);
+    expect(result.estado).toBe(EstadoRetiro.PENDIENTE);
+    expect(result.razonFallo).toContain('manual');
+    expect(billetera.debitar).toHaveBeenCalledTimes(1);
+    expect(banco.procesarTransferenciaUSD).not.toHaveBeenCalled();
+  });
+  it('marca FALLIDO y deja constancia de la devolución manual cuando falla la pasarela', async () => {
+    billetera.debitar.mockResolvedValue({ estado: 'DEBITADO', movimientoId: 'mov-1', billeteraId: 'wallet-1' });
+    banco.procesarTransferenciaUSD.mockResolvedValue({ exitosa: false, motivoRechazo: 'Cuenta inactiva' });
+    const result = await caso.ejecutar(dto);
+    expect(result.estado).toBe(EstadoRetiro.FALLIDO);
+    expect(result.movimientoBilleteraId).toBe('mov-1');
+    expect(result.razonFallo).toContain('devolución manual');
+  });
+  it('marca FALLIDO sin contactar al banco si el débito no fue realizado', async () => {
+    billetera.debitar.mockResolvedValue({ estado: 'NO_DEBITADO', razon: 'Billetera no disponible' });
+    expect((await caso.ejecutar(dto)).estado).toBe(EstadoRetiro.FALLIDO);
+    expect(banco.procesarTransferenciaUSD).not.toHaveBeenCalled();
   });
 });

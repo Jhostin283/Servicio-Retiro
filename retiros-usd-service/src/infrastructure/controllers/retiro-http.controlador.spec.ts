@@ -10,7 +10,7 @@ describe('RetiroHttpControlador (Infraestructura HTTP)', () => {
   let mockCrearCasoUso: jest.Mocked<CrearRetiroCasoUso>;
   let mockConsultarCasoUso: jest.Mocked<ConsultarRetiroCasoUso>;
 
-  const retiroPrueba = Retiro.crearNuevo('usr-1', MontoUSD.crear(150.5), 'CHASE', '987654321');
+  const retiroPrueba = Retiro.crearNuevo('usr-1', MontoUSD.crear(150.5), '987654321');
 
   beforeEach(async () => {
     mockCrearCasoUso = {
@@ -37,7 +37,7 @@ describe('RetiroHttpControlador (Infraestructura HTTP)', () => {
     const dto = {
       usuarioId: 'usr-1',
       montoUSD: 150.5,
-      codigoBanco: 'CHASE',
+
       cuentaDestino: '987654321',
     };
     const res = await controlador.crearSolicitud(dto);

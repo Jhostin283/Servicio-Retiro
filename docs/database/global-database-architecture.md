@@ -1,6 +1,6 @@
 # 🛢️ Arquitectura Global de Bases de Datos del Sistema
 
-Este documento describe la **Arquitectura Global de Bases de Datos** para la plataforma de Billetera Digital, basada en el patrón **Database per Service**.
+Este documento es un modelo conceptual del ecosistema. Solo se ha verificado la estructura del servicio de retiros; las tablas de otros servicios son ilustrativas y no describen necesariamente sus implementaciones reales.
 
 ---
 
@@ -48,10 +48,9 @@ erDiagram
     %% BASE DE DATOS 4: db_servicio_retiros_usd (Servicio de Retiros USD - IMPLEMENTADO)
     RETIROS {
         uuid id PK "Identificador de retiro"
-        uuid usuario_id "Usuario solicitante (FK Lógica db_usuarios)"
+        varchar usuario_id "Identificador de usuario, alias o UUID"
         decimal monto_usd "Monto ($1 a $10,000 USD)"
         string moneda "USD"
-        string codigo_banco "Código SWIFT / Banco"
         string cuenta_destino "Número de cuenta"
         string tipo_cuenta "AHORROS | CORRIENTE"
         string estado "PENDIENTE | COMPLETADO | FALLIDO | RECHAZADO"
@@ -76,8 +75,7 @@ erDiagram
     CUENTAS_BILLETERA ||--o{ RESERVAS_FONDOS : "Gestiona Reservas"
     USUARIOS ||--o{ DEPOSITOS : "Solicita Depósitos"
     USUARIOS ||--o{ RETIROS : "1. Solicita Retiros (usuario_id)"
-    CUENTAS_BILLETERA ||--o{ RETIROS : "2. Debita Saldo USD (usuario_id vía RabbitMQ)"
-    RESERVAS_FONDOS ||--|| RETIROS : "3. Bloquea Fondos Provisionales (id_referencia vía RabbitMQ)"
+    CUENTAS_BILLETERA ||--o{ RETIROS : "2. Débito solicitado por HTTP (usuario_id)"
     USUARIOS ||--o{ ORDENES_CAMBIO : "Ejecuta Cambio Divisas"
 ```
 
@@ -98,5 +96,5 @@ erDiagram
 ## 🔒 3. Principios de Aislamiento y Persistencia
 
 1. **Database per Service**: Ningún microservicio tiene acceso directo a las tablas de otro servicio ni realiza consultas `JOIN` entre bases de datos distintas.
-2. **Comunicación Orientada a Eventos**: La sincronización de estados financieros entre servicios se efectúa mediante eventos en **RabbitMQ** (`withdrawal.requested`, `withdrawal.completed`, `withdrawal.failed`).
+2. **Integración de retiros**: Retiros consulta y debita la billetera mediante HTTP. No hay reserva documentada ni acceso directo a su base de datos.
 3. **Escalabilidad Independiente**: Cada base de datos se despliega en su propio contenedor/volumen Docker PostgreSQL 15.

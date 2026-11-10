@@ -45,12 +45,13 @@ export class RepositorioRetiroAdaptador implements RepositorioRetiroPuerto {
     e.usuarioId = r.usuarioId;
     e.montoUSD = r.montoUSD.obtenerValor();
     e.moneda = r.moneda;
-    e.codigoBanco = r.codigoBanco;
     e.cuentaDestino = r.cuentaDestino;
     e.tipoCuenta = r.tipoCuenta;
     e.estado = r.estado;
     e.referenciaBancaria = r.referenciaBancaria;
     e.razonFallo = r.razonFallo;
+    e.movimientoBilleteraId = r.movimientoBilleteraId;
+    e.billeteraId = r.billeteraId;
     return e;
   }
 
@@ -61,13 +62,14 @@ export class RepositorioRetiroAdaptador implements RepositorioRetiroPuerto {
       e.usuarioId,
       montoVO,
       e.moneda,
-      e.codigoBanco,
       e.cuentaDestino,
       e.tipoCuenta,
       e.estado,
       e.referenciaBancaria,
       e.razonFallo,
       e.fechaCreacion ? e.fechaCreacion.toISOString() : new Date().toISOString(),
+      e.movimientoBilleteraId,
+      e.billeteraId,
     );
     return r;
   }

@@ -8,9 +8,18 @@ coverage/
 
 # Environment Variables & Secrets
 .env
-.env.local
-.env.development
-.env.production
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+/.aws/
+
+# Local test client, deployment and project backup
+/frontend/
+/k8s/
+/proyecto-completo-retiros-usd.zip
 
 # IDE & System Files
 .vscode/

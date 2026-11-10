@@ -8,7 +8,7 @@ export class AdaptadorPasarelaBancaria implements PasarelaBancariaPuerto {
 
   async procesarTransferenciaUSD(retiro: Retiro): Promise<ResultadoTransferencia> {
     this.logger.log(
-      `[Pasarela Bancaria USD] Enviando $${retiro.montoUSD.obtenerValor()} USD al banco ${retiro.codigoBanco} (Cuenta: ${retiro.cuentaDestino})`,
+      `[Pasarela Bancaria USD] Enviando $${retiro.montoUSD.obtenerValor()} USD a la cuenta ${retiro.cuentaDestino}`,
     );
 
     // Validación de estado de cuenta bancaria receptor: Si la cuenta es "0000", se marca rechazada

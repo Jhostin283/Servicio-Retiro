@@ -6,7 +6,9 @@
 ### Criterios de Aceptación de la Historia
 - Búsqueda directa de una transacción mediante su UUID único.
 - Obtención del historial filtrado por identificador de usuario (`usuarioId`).
-- Respuestas claras con códigos de estado HTTP estándar (200 OK, 404 Not Found).
+- Respuesta con lista vacía `[]` (HTTP 200 OK) cuando el usuario no cuenta con retiros previos.
+- Historial ordenado cronológicamente de forma descendente (más reciente primero).
+- Respuestas claras con códigos de estado HTTP estándar (200 OK, 400 Bad Request, 404 Not Found).
 
 ---
 
@@ -33,5 +35,18 @@ El sistema DEBE listar todos los retiros asociados a un usuario específico.
 
 #### Scenario: 002.1 - Obtener lista de retiros de usuario
 - **GIVEN** un `usuarioId` con retiros previos registrados
-- **WHEN** el cliente consulta GET /api/v1/retiros/usuario/{usuarioId}
+- **WHEN** el cliente consulta GET /api/v1/retiros?usuarioId={usuarioId}
 - **THEN** el sistema retorna un arreglo JSON con el historial completo de solicitudes de retiro.
+
+#### Scenario: 002.2 - Usuario sin transacciones previas
+- **GIVEN** un `usuarioId` válido que no posee solicitudes de retiro registradas
+- **WHEN** el cliente consulta GET /api/v1/retiros?usuarioId={usuarioId}
+- **THEN** el sistema responde con HTTP 200 OK y un arreglo JSON vacío `[]`.
+
+### Requirement: REQ-CON-003 - Ordenamiento y Paginación del Historial (US-CON-01)
+El sistema DEBE retornar el historial de retiros ordenado cronológicamente de forma descendente.
+
+#### Scenario: 003.1 - Orden cronológico descendente del historial
+- **GIVEN** un usuario con múltiples solicitudes de retiro generadas en distintas fechas
+- **WHEN** el cliente consulta su historial
+- **THEN** el sistema retorna los registros ordenados desde el más reciente al más antiguo (`fechaCreacion DESC`).

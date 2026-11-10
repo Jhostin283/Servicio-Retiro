@@ -10,10 +10,10 @@ Este documento especifica la estrategia de ramificación, convención de commits
 main (Rama Estable de Producción)
   │
   ├── feature/almerco/spec-001 (Formulario UI & Endpoint POST /retiros)
-  ├── feature/almerco/spec-002 (Cliente HTTP Service & Publicador RabbitMQ)
+  ├── feature/almerco/spec-002 (Cliente HTTP y persistencia)
   │
   ├── feature/gino/spec-003    (Tabla Historial UI & Endpoint GET por Usuario)
-  └── feature/gino/spec-004    (Live Updates RxJS, Consumidores AMQP & Pasarela ACH)
+  └── feature/gino/spec-004    (Consulta de estado y pasarela simulada)
 ```
 
 ---

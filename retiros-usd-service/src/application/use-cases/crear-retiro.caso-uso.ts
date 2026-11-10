@@ -1,70 +1,56 @@
-import { Injectable, Inject, Logger, Optional } from '@nestjs/common';
+import { Injectable, Inject, Logger } from '@nestjs/common';
 import { Retiro } from '../../domain/models/retiro.modelo';
 import { MontoUSD } from '../../domain/value-objects/monto-usd.vo';
 import { REPOSITO_RETIRO_PUERTO, RepositorioRetiroPuerto } from '../../domain/ports/output/repositorio-retiro.puerto';
-import { PUBLICADOR_EVENTOS_PUERTO, PublicadorEventosPuerto } from '../../domain/ports/output/publicador-eventos.puerto';
+import { BILLETERA_USD_PUERTO, BilleteraUsdPuerto } from '../../domain/ports/output/billetera-usd.puerto';
+import { PASARELA_BANCARIA_PUERTO, PasarelaBancariaPuerto } from '../../domain/ports/output/pasarela-bancaria.puerto';
 import { CrearRetiroDto } from '../dtos/crear-retiro.dto';
-import { ProcesarFondosReservadosCasoUso } from './procesar-fondos-reservados.caso-uso';
-import { ProcesarFondosRechazadosCasoUso } from './procesar-fondos-rechazados.caso-uso';
 
 @Injectable()
 export class CrearRetiroCasoUso {
   private readonly logger = new Logger(CrearRetiroCasoUso.name);
 
   constructor(
-    @Inject(REPOSITO_RETIRO_PUERTO)
-    private readonly repositorio: RepositorioRetiroPuerto,
-    @Inject(PUBLICADOR_EVENTOS_PUERTO)
-    private readonly publicador: PublicadorEventosPuerto,
-    @Optional()
-    private readonly procesarFondosReservadosCasoUso?: ProcesarFondosReservadosCasoUso,
-    @Optional()
-    private readonly procesarFondosRechazadosCasoUso?: ProcesarFondosRechazadosCasoUso,
+    @Inject(REPOSITO_RETIRO_PUERTO) private readonly repositorio: RepositorioRetiroPuerto,
+    @Inject(BILLETERA_USD_PUERTO) private readonly billetera: BilleteraUsdPuerto,
+    @Inject(PASARELA_BANCARIA_PUERTO) private readonly pasarela: PasarelaBancariaPuerto,
   ) {}
 
   async ejecutar(dto: CrearRetiroDto): Promise<Retiro> {
-    const montoVO = MontoUSD.crear(dto.montoUSD);
+    const retiro = await this.repositorio.guardar(Retiro.crearNuevo(
+      dto.usuarioId, MontoUSD.crear(dto.montoUSD), dto.cuentaDestino, dto.tipoCuenta || 'AHORROS',
+    ));
 
-    const nuevoRetiro = Retiro.crearNuevo(
-      dto.usuarioId,
-      montoVO,
-      dto.codigoBanco,
-      dto.cuentaDestino,
-      dto.tipoCuenta || 'AHORROS',
-    );
+    const debito = await this.billetera.debitar(retiro.usuarioId, retiro.montoUSD.obtenerValor());
+    if (debito.estado === 'RECHAZADO') {
+      retiro.marcarComoRechazado(debito.razon);
+      return this.repositorio.actualizar(retiro);
+    }
+    if (debito.estado === 'NO_DEBITADO') {
+      retiro.marcarComoFallido(debito.razon);
+      return this.repositorio.actualizar(retiro);
+    }
+    if (debito.estado === 'DESCONOCIDO') {
+      retiro.razonFallo = debito.razon;
+      this.logger.warn(`Retiro ${retiro.id}: débito incierto; no reintentar automáticamente.`);
+      return this.repositorio.actualizar(retiro);
+    }
 
-    const retiroGuardado = await this.repositorio.guardar(nuevoRetiro);
+    retiro.movimientoBilleteraId = debito.movimientoId;
+    retiro.billeteraId = debito.billeteraId;
+    // Registrar el débito antes del desembolso para facilitar la conciliación manual.
+    await this.repositorio.actualizar(retiro);
 
-    this.logger.log(
-      `[CasoUso: CrearRetiro] Retiro id=${retiroGuardado.id} guardado en estado PENDIENTE ($${montoVO.obtenerValor()} USD)`,
-    );
-
-    await this.publicador.publicarRetiroSolicitado(retiroGuardado);
-
-    // ⚡ Ciclo asíncrono de procesamiento de retiro (Reserva de fondos y confirmación de pasarela bancaria)
-    setTimeout(async () => {
-      try {
-        if (dto.cuentaDestino === '0000') {
-          if (this.procesarFondosRechazadosCasoUso) {
-            this.logger.warn(`[ServicioRetiros - CicloAsincrono] Rechazando retiro id=${retiroGuardado.id} por cuenta inactiva ('0000')`);
-            await this.procesarFondosRechazadosCasoUso.ejecutar(
-              retiroGuardado.id,
-              'Cuenta bancaria de destino inactiva o rechazada por el banco receptor',
-            );
-          }
-        } else {
-          if (this.procesarFondosReservadosCasoUso) {
-            this.logger.log(`[ServicioRetiros - CicloAsincrono] Procesando confirmación bancaria para retiro id=${retiroGuardado.id}`);
-            await this.procesarFondosReservadosCasoUso.ejecutar(retiroGuardado.id);
-          }
-        }
-      } catch (error) {
-        this.logger.error(`Error en ciclo asíncrono de eventos para retiro ${retiroGuardado.id}: ${error}`);
+    try {
+      const banco = await this.pasarela.procesarTransferenciaUSD(retiro);
+      if (banco.exitosa) {
+        retiro.marcarComoCompletado(banco.referenciaBancaria || 'ACH-DIRECT');
+      } else {
+        retiro.marcarComoFallido(`Saldo debitado: devolución manual necesaria. ${banco.motivoRechazo || 'Falló la pasarela'}`.slice(0, 255));
       }
-    }, 1500);
-
-    return retiroGuardado;
+    } catch {
+      retiro.marcarComoFallido('Falló la pasarela. Saldo debitado: devolución manual necesaria.');
+    }
+    return this.repositorio.actualizar(retiro);
   }
 }
-
-

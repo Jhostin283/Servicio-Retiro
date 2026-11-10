@@ -14,7 +14,7 @@ describe('RepositorioRetiroAdaptador (Infraestructura)', () => {
     usuarioId: 'usr-1',
     montoUSD: 150.5,
     moneda: 'USD',
-    codigoBanco: 'CHASE',
+
     cuentaDestino: '987654321',
     tipoCuenta: 'AHORROS',
     estado: EstadoRetiro.PENDIENTE,
@@ -35,7 +35,7 @@ describe('RepositorioRetiroAdaptador (Infraestructura)', () => {
   });
 
   it('debe guardar un retiro y mapearlo de dominio a ORM y viceversa', async () => {
-    const retiro = Retiro.crearNuevo('usr-1', MontoUSD.crear(150.5), 'CHASE', '987654321');
+    const retiro = Retiro.crearNuevo('usr-1', MontoUSD.crear(150.5), '987654321');
     const res = await adaptador.guardar(retiro);
 
     expect(res).toBeDefined();

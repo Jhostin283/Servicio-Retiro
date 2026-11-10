@@ -1,19 +1,21 @@
 # SPEC-001: Solicitud de Retiros USD (Formulario UI & Endpoint POST)
 
-- **Nombre**: Formulario de Solicitud de Retiro y Endpoint HTTP `POST /retiros`
+- **Nombre**: Formulario de Solicitud de Retiro y Endpoint HTTP `POST /api/v1/retiros`
 - **Responsable**: Almerco
 - **Objetivo**: Implementar la funcionalidad completa de registro de solicitudes de retiro, integrando la UI en Angular 17 con la capa de aplicación NestJS.
 - **Alcance por Capas**:
-  - **Frontend (Angular 17)**: Componente reactivo `FormularioRetiroComponent` con validación de montos entre $1.00 y $10,000.00 USD, selector de banco SWIFT y número de cuenta.
-  - **Backend (NestJS)**: Caso de Uso `CrearRetiroCasoUso` y Controlador HTTP `@Post('/retiros')` para recibir DTOs y validar reglas de dominio.
+  - **Frontend (Angular 17)**: Formulario reactivo con monto en USD y cuenta de destino.
+  - **Backend (NestJS)**: Caso de Uso `CrearRetiroCasoUso` y Controlador HTTP `@Post('/api/v1/retiros')` para recibir DTOs y validar reglas de dominio.
 - **Archivos Involucrados**:
   - `frontend/`
   - `retiros-usd-service/`
 - **Dependencias**: Ninguna.
 - **Criterios de Aceptación**:
-  - Formulario con validación síncrona de inputs en Angular.
-  - Endpoint `POST /retiros` respondiendo 201 Created con entidad registrada en estado `PENDIENTE`.
+  - Formulario con validación síncrona de inputs en Angular (montos entre $1.00 y $10,000.00 USD, máximo 2 decimales y solo divisa USD).
+  - Cuenta de destino obligatoria y tipo de cuenta opcional.
+  - Endpoint `POST /api/v1/retiros`: registra inicialmente `PENDIENTE`, procesa la respuesta de billetera y devuelve HTTP 201 con el estado resultante.
+  - La API no garantiza idempotencia; un resultado incierto requiere revisión manual.
   - Pruebas unitarias en Frontend y Backend con cobertura >80%.
 - **Commits Esperados**:
   - `git add frontend/` -> `git commit -m "feat(frontend): implementar componente de formulario de solicitud de retiro con validacion de rango"`
-  - `git add retiros-usd-service/` -> `git commit -m "feat(backend): implementar caso de uso crear retiro y controlador HTTP POST /retiros"`
+  - `git add retiros-usd-service/` -> `git commit -m "feat(backend): implementar caso de uso crear retiro y controlador HTTP POST /api/v1/retiros"`

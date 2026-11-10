@@ -1,0 +1,683 @@
+{
+  "info": {
+    "name": "Retiros USD - Pruebas de despliegue",
+    "description": "Flujo entre API de retiros y billetera USD. La colección consulta saldo directamente antes y después; el único débito lo solicita el backend de retiros al crear la solicitud. Configura las URL, usa una billetera ficticia autorizada y activa permitirDebito=SI para un solo envío.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "",
+      "type": "string",
+      "description": "DNS del balanceador con http:// o https://, sin barra final; también puedes usar http://localhost:3004 en local."
+    },
+    {
+      "key": "usuarioId",
+      "value": "jhostin",
+      "type": "string",
+      "description": "Usuario de prueba existente en billetera."
+    },
+    {
+      "key": "cuentaDestino",
+      "value": "123456789",
+      "type": "string",
+      "description": "Cuenta de destino ficticia para la pasarela simulada."
+    },
+    {
+      "key": "permitirDebito",
+      "value": "NO",
+      "type": "string",
+      "description": "Escribe SI para permitir un solo intento de USD 1; se restablece a NO antes de enviar."
+    },
+    {
+      "key": "retiroId",
+      "value": "",
+      "type": "string",
+      "description": "Se guarda automáticamente al crear un retiro con HTTP 201; también puedes pegar un ID existente."
+    },
+    {
+      "key": "idNoExistente",
+      "value": "00000000-0000-4000-8000-000000000000",
+      "type": "string",
+      "description": "UUID de prueba que no debe existir en tu base de datos."
+    },
+    {
+      "key": "baseUrlBilletera",
+      "value": "http://54.167.69.62",
+      "type": "string",
+      "description": "Dirección de prueba de la API de billetera, sin /acceso ni barra final; confirmar con el otro equipo."
+    },
+    {
+      "key": "saldoInicial",
+      "value": "",
+      "type": "string",
+      "description": "Saldo capturado por la consulta previa a billetera."
+    },
+    {
+      "key": "billeteraInicialId",
+      "value": "",
+      "type": "string",
+      "description": "ID capturado en la consulta previa para comparar la misma billetera."
+    },
+    {
+      "key": "usuarioSaldoInicial",
+      "value": "",
+      "type": "string",
+      "description": "Usuario de la consulta previa."
+    },
+    {
+      "key": "urlSaldoInicial",
+      "value": "",
+      "type": "string",
+      "description": "Dirección de billetera usada en la consulta previa."
+    },
+    {
+      "key": "debitoConfirmado",
+      "value": "NO",
+      "type": "string",
+      "description": "Se activa únicamente tras un retiro COMPLETADO con ID de movimiento confirmado."
+    },
+    {
+      "key": "usuarioRetiroConfirmado",
+      "value": "",
+      "type": "string",
+      "description": "Usuario del último retiro completado por la colección."
+    }
+  ],
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "const base = pm.variables.get('baseUrl');",
+          "if (!base || !/^https?:\\/\\/.+/.test(base) || base.endsWith('/')) {",
+          "  console.warn('Configura baseUrl con http:// o https://, sin barra final.');",
+          "  pm.execution.skipRequest();",
+          "}"
+        ]
+      }
+    }
+  ],
+  "item": [
+    {
+      "name": "1 - Comprobaciones sin débito",
+      "item": [
+        {
+          "name": "Swagger disponible",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/docs",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "docs"
+              ]
+            },
+            "description": "Comprueba que Swagger responde a través del balanceador."
+          },
+          "response": []
+        },
+        {
+          "name": "Historial del usuario",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
+                  "pm.test('La respuesta es una lista', function () { pm.expect(pm.response.json()).to.be.an('array'); });",
+                  "pm.test('Los retiros pertenecen al usuario', function () { pm.response.json().forEach(r => pm.expect(r.usuarioId).to.eql(pm.variables.get('usuarioId'))); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/retiros?usuarioId={{usuarioId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "retiros"
+              ],
+              "query": [
+                {
+                  "key": "usuarioId",
+                  "value": "{{usuarioId}}"
+                }
+              ]
+            },
+            "description": "Consulta los retiros de usuarioId; un historial vacío también es válido."
+          },
+          "response": []
+        },
+        {
+          "name": "Historial sin usuario - 400",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 400\", function () { pm.response.to.have.status(400); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/retiros",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "retiros"
+              ]
+            },
+            "description": "Comprueba que el usuario es obligatorio para consultar el historial."
+          },
+          "response": []
+        },
+        {
+          "name": "Retiro inexistente - 404",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 404\", function () { pm.response.to.have.status(404); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/retiros/{{idNoExistente}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "retiros",
+                "{{idNoExistente}}"
+              ]
+            },
+            "description": "Comprueba un UUID válido que no exista en la base de datos."
+          },
+          "response": []
+        },
+        {
+          "name": "Monto menor al mínimo - 400",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 400\", function () { pm.response.to.have.status(400); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"usuarioId\": \"{{usuarioId}}\",\n  \"montoUSD\": 0.5,\n  \"cuentaDestino\": \"{{cuentaDestino}}\",\n  \"tipoCuenta\": \"AHORROS\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/retiros",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "retiros"
+              ]
+            },
+            "description": "El monto USD 0.50 se rechaza antes de solicitar el débito."
+          },
+          "response": []
+        },
+        {
+          "name": "Falta usuario - 400",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 400\", function () { pm.response.to.have.status(400); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"montoUSD\": 1,\n  \"cuentaDestino\": \"{{cuentaDestino}}\",\n  \"tipoCuenta\": \"AHORROS\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/retiros",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "retiros"
+              ]
+            },
+            "description": "Valida que no se pueda crear un retiro sin usuario."
+          },
+          "response": []
+        },
+        {
+          "name": "Falta cuenta de destino - 400",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 400\", function () { pm.response.to.have.status(400); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"usuarioId\": \"{{usuarioId}}\",\n  \"montoUSD\": 1,\n  \"tipoCuenta\": \"AHORROS\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/retiros",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "retiros"
+              ]
+            },
+            "description": "Valida que la cuenta de destino sea obligatoria."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "2 - Consultar billetera antes del retiro",
+      "item": [
+        {
+          "name": "Consultar billetera y saldo inicial",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const urlBilletera = pm.variables.get('baseUrlBilletera');",
+                  "if (!urlBilletera || !/^https?:\\/\\/.+/.test(urlBilletera) || urlBilletera.endsWith('/')) {",
+                  "  console.warn('Configura baseUrlBilletera con protocolo y sin barra final.');",
+                  "  pm.execution.skipRequest();",
+                  "}",
+                  "['saldoInicial','billeteraInicialId','usuarioSaldoInicial','urlSaldoInicial','debitoConfirmado','usuarioRetiroConfirmado'].forEach(k => pm.collectionVariables.unset(k));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Billetera responde HTTP 200', function () { pm.response.to.have.status(200); });",
+                  "if (pm.response.code === 200) {",
+                  "  const wallet = pm.response.json();",
+                  "  const saldo = Number(wallet.balance);",
+                  "  const esValida = wallet.user_id === pm.variables.get('usuarioId') && wallet.moneda === 'USD' && typeof wallet.id === 'string' && wallet.id.length > 0 && wallet.balance !== null && wallet.balance !== undefined && String(wallet.balance).trim() !== '' && Number.isFinite(saldo);",
+                  "  pm.test('La billetera corresponde al usuario y opera en USD', function () { pm.expect(esValida).to.eql(true); });",
+                  "  if (esValida) {",
+                  "    pm.collectionVariables.set('saldoInicial', String(saldo));",
+                  "    pm.collectionVariables.set('billeteraInicialId', wallet.id);",
+                  "    pm.collectionVariables.set('usuarioSaldoInicial', wallet.user_id);",
+                  "    pm.collectionVariables.set('urlSaldoInicial', pm.variables.get('baseUrlBilletera'));",
+                  "    console.log('Saldo inicial capturado: ' + saldo + ' USD');",
+                  "  }",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrlBilletera}}/api/v1/billetera/usuarios/{{usuarioId}}/wallet",
+              "host": [
+                "{{baseUrlBilletera}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "billetera",
+                "usuarios",
+                "{{usuarioId}}",
+                "wallet"
+              ]
+            },
+            "description": "Consulta directamente la billetera USD del otro equipo. Guarda el ID y saldo para compararlos después; no descuenta saldo."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "3 - Solicitar retiro autorizado (descuenta saldo)",
+      "item": [
+        {
+          "name": "Retiro de prueba USD 1 - envío único",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.collectionVariables.get('permitirDebito') !== 'SI') {",
+                  "  console.warn('No se envió el retiro. Configura permitirDebito=SI solo cuando el débito esté autorizado.');",
+                  "  pm.execution.skipRequest();",
+                  "}",
+                  "pm.collectionVariables.set('permitirDebito', 'NO');",
+                  "pm.collectionVariables.unset('retiroId');",
+                  "pm.collectionVariables.unset('debitoConfirmado');",
+                  "pm.collectionVariables.unset('usuarioRetiroConfirmado');",
+                  "console.warn('Se enviará un único retiro. No repitas si la respuesta es incierta.');"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 201\", function () { pm.response.to.have.status(201); });",
+                  "if (pm.response.code === 201) {",
+                  "  const retiro = pm.response.json();",
+                  "  if (retiro.id) pm.collectionVariables.set('retiroId', retiro.id);",
+                  "  if (retiro.estado === 'COMPLETADO' && typeof retiro.movimientoBilleteraId === 'string' && retiro.movimientoBilleteraId && retiro.usuarioId === pm.variables.get('usuarioId')) { pm.collectionVariables.set('debitoConfirmado', 'SI'); pm.collectionVariables.set('usuarioRetiroConfirmado', retiro.usuarioId); }",
+                  "  if (retiro.estado === 'COMPLETADO') pm.test('El retiro conserva el movimiento confirmado por billetera', function () { pm.expect(retiro.movimientoBilleteraId).to.be.a('string').and.not.empty; });",
+                  "  pm.test('El retiro tiene ID y usuario esperado', function () { pm.expect(retiro.id).to.be.a('string').and.not.empty; pm.expect(retiro.usuarioId).to.eql(pm.variables.get('usuarioId')); });",
+                  "  pm.test('El débito y la pasarela simulada se completaron', function () { pm.expect(retiro.estado, 'Revisa estado y razonFallo antes de volver a intentar').to.eql('COMPLETADO'); });",
+                  "  if (retiro.estado !== 'COMPLETADO') console.warn('Estado: ' + retiro.estado + '. Motivo: ' + (retiro.razonFallo || 'sin detalle'));",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"usuarioId\": \"{{usuarioId}}\",\n  \"montoUSD\": 1,\n  \"cuentaDestino\": \"{{cuentaDestino}}\",\n  \"tipoCuenta\": \"AHORROS\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/retiros",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "retiros"
+              ]
+            },
+            "description": "Requiere billetera de prueba con saldo ficticio autorizado y permitirDebito=SI. Descuenta USD 1 si billetera confirma. La pasarela es simulada. Se restablece el permiso a NO antes del envío; no repetir si la respuesta se pierde."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "4 - Consultar el retiro registrado",
+      "item": [
+        {
+          "name": "Consultar retiro por ID",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.collectionVariables.get('retiroId')) {",
+                  "  console.warn('Primero realiza el retiro autorizado o configura retiroId en las variables de la colección.');",
+                  "  pm.execution.skipRequest();",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
+                  "pm.test('El ID coincide', function () { pm.expect(pm.response.json().id).to.eql(pm.collectionVariables.get('retiroId')); });",
+                  "pm.test('El estado es conocido', function () { pm.expect(['PENDIENTE','RESERVADO','COMPLETADO','RECHAZADO','FALLIDO']).to.include(pm.response.json().estado); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/retiros/{{retiroId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "retiros",
+                "{{retiroId}}"
+              ]
+            },
+            "description": "Usa el ID guardado por la solicitud de retiro o ingresa un ID existente en la colección."
+          },
+          "response": []
+        },
+        {
+          "name": "Consultar historial actualizado",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.collectionVariables.get('retiroId')) {",
+                  "  console.warn('Primero realiza el retiro autorizado o configura retiroId en las variables de la colección.');",
+                  "  pm.execution.skipRequest();",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", function () { pm.response.to.have.status(200); });",
+                  "pm.test('El historial contiene el retiro', function () { const id = pm.collectionVariables.get('retiroId'); pm.expect(pm.response.json().some(r => r.id === id)).to.eql(true); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/retiros?usuarioId={{usuarioId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "retiros"
+              ],
+              "query": [
+                {
+                  "key": "usuarioId",
+                  "value": "{{usuarioId}}"
+                }
+              ]
+            },
+            "description": "Si acabas de crear un retiro, comprueba que el ID guardado aparece en el historial."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "5 - Consultar billetera después del retiro",
+      "item": [
+        {
+          "name": "Consultar billetera y saldo después",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const urlBilletera = pm.variables.get('baseUrlBilletera');",
+                  "if (!urlBilletera || !/^https?:\\/\\/.+/.test(urlBilletera) || urlBilletera.endsWith('/')) {",
+                  "  console.warn('Configura baseUrlBilletera con protocolo y sin barra final.');",
+                  "  pm.execution.skipRequest();",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Billetera responde HTTP 200', function () { pm.response.to.have.status(200); });",
+                  "if (pm.response.code === 200) {",
+                  "  const wallet = pm.response.json();",
+                  "  const esValida = wallet.user_id === pm.variables.get('usuarioId') && wallet.moneda === 'USD' && typeof wallet.id === 'string' && wallet.balance !== null && wallet.balance !== undefined && String(wallet.balance).trim() !== '' && Number.isFinite(Number(wallet.balance));",
+                  "  pm.test('La billetera corresponde al usuario y opera en USD', function () { pm.expect(esValida).to.eql(true); });",
+                  "  const inicial = pm.collectionVariables.get('saldoInicial');",
+                  "  const comparable = esValida && pm.collectionVariables.get('debitoConfirmado') === 'SI' && pm.collectionVariables.get('usuarioRetiroConfirmado') === wallet.user_id && pm.collectionVariables.get('usuarioSaldoInicial') === wallet.user_id && pm.collectionVariables.get('billeteraInicialId') === wallet.id && pm.collectionVariables.get('urlSaldoInicial') === pm.variables.get('baseUrlBilletera') && inicial !== undefined && inicial !== null && String(inicial) !== '';",
+                  "  if (comparable) {",
+                  "    pm.test('Saldo disminuyó USD 1 (si no hubo otros movimientos)', function () { pm.expect(Number(wallet.balance)).to.be.closeTo(Number(inicial) - 1, 0.001); });",
+                  "  } else {",
+                  "    console.warn('Comparación omitida: falta un saldo inicial válido o un retiro completado de la misma billetera y usuario.');",
+                  "  }",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrlBilletera}}/api/v1/billetera/usuarios/{{usuarioId}}/wallet",
+              "host": [
+                "{{baseUrlBilletera}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "billetera",
+                "usuarios",
+                "{{usuarioId}}",
+                "wallet"
+              ]
+            },
+            "description": "Consulta directamente la billetera al finalizar. Si se capturó el saldo inicial y el retiro de USD 1 quedó COMPLETADO, compara la reducción de saldo. Otros movimientos simultáneos pueden afectar la comparación."
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}

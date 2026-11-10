@@ -5,7 +5,7 @@ import { EstadoRetiro } from '../enums/estado-retiro.enum';
 describe('Retiro (Modelo de Dominio)', () => {
   it('debe instanciar un retiro en estado PENDIENTE con moneda USD', () => {
     const monto = MontoUSD.crear(100.0);
-    const retiro = Retiro.crearNuevo('usr-123', monto, 'CHASE', '987654321');
+    const retiro = Retiro.crearNuevo('usr-123', monto, '987654321');
 
     expect(retiro.id).toBeDefined();
     expect(retiro.usuarioId).toBe('usr-123');
@@ -16,7 +16,7 @@ describe('Retiro (Modelo de Dominio)', () => {
 
   it('debe cambiar el estado a COMPLETADO al registrar referencia bancaria', () => {
     const monto = MontoUSD.crear(100.0);
-    const retiro = Retiro.crearNuevo('usr-123', monto, 'CHASE', '987654321');
+    const retiro = Retiro.crearNuevo('usr-123', monto, '987654321');
     retiro.marcarComoCompletado('REF-ACH-999');
 
     expect(retiro.estado).toBe(EstadoRetiro.COMPLETADO);
@@ -25,7 +25,7 @@ describe('Retiro (Modelo de Dominio)', () => {
 
   it('debe cambiar el estado a FALLIDO al registrar la razón', () => {
     const monto = MontoUSD.crear(100.0);
-    const retiro = Retiro.crearNuevo('usr-123', monto, 'CHASE', '987654321');
+    const retiro = Retiro.crearNuevo('usr-123', monto, '987654321');
     retiro.marcarComoFallido('Cuenta destino bloqueada');
 
     expect(retiro.estado).toBe(EstadoRetiro.FALLIDO);

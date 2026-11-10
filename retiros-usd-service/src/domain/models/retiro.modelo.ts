@@ -7,19 +7,19 @@ export class Retiro {
     public readonly usuarioId: string,
     public readonly montoUSD: MontoUSD,
     public readonly moneda: string,
-    public readonly codigoBanco: string,
     public readonly cuentaDestino: string,
     public readonly tipoCuenta: string,
     public estado: EstadoRetiro,
     public referenciaBancaria?: string,
     public razonFallo?: string,
     public readonly fechaCreacion: string = new Date().toISOString(),
+    public movimientoBilleteraId?: string,
+    public billeteraId?: string,
   ) {}
 
   public static crearNuevo(
     usuarioId: string,
     montoUSD: MontoUSD,
-    codigoBanco: string,
     cuentaDestino: string,
     tipoCuenta: string = 'AHORROS',
   ): Retiro {
@@ -28,7 +28,6 @@ export class Retiro {
       usuarioId,
       montoUSD,
       'USD',
-      codigoBanco,
       cuentaDestino,
       tipoCuenta,
       EstadoRetiro.PENDIENTE,

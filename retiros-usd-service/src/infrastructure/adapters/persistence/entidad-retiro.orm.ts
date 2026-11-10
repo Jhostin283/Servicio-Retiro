@@ -16,9 +16,6 @@ export class EntidadRetiroORM {
   @Column({ name: 'moneda', type: 'varchar', length: 10, default: 'USD' })
   moneda!: string;
 
-  @Column({ name: 'codigo_banco', type: 'varchar', length: 50 })
-  codigoBanco!: string;
-
   @Column({ name: 'cuenta_destino', type: 'varchar', length: 100 })
   cuentaDestino!: string;
 
@@ -34,6 +31,12 @@ export class EntidadRetiroORM {
 
   @Column({ name: 'razon_fallo', type: 'varchar', length: 255, nullable: true })
   razonFallo?: string;
+
+  @Column({ name: 'movimiento_billetera_id', type: 'varchar', length: 100, nullable: true })
+  movimientoBilleteraId?: string;
+
+  @Column({ name: 'billetera_id', type: 'varchar', length: 100, nullable: true })
+  billeteraId?: string;
 
   @CreateDateColumn({ name: 'fecha_creacion' })
   fechaCreacion!: Date;

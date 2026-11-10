@@ -8,7 +8,7 @@ describe('ConsultarRetiroCasoUso (Capa de Aplicación)', () => {
   let casoUso: ConsultarRetiroCasoUso;
   let mockRepositorio: jest.Mocked<RepositorioRetiroPuerto>;
 
-  const retiroPrueba = Retiro.crearNuevo('usr-100', MontoUSD.crear(200), 'CHASE', '11223344');
+  const retiroPrueba = Retiro.crearNuevo('usr-100', MontoUSD.crear(200), '11223344');
 
   beforeEach(() => {
     mockRepositorio = {

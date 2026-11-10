@@ -17,7 +17,10 @@ export class MontoUSD {
     if (valor > 10000.0) {
       throw new BadRequestException('El monto máximo de retiro permitido es de $10,000.00 USD.');
     }
-    return new MontoUSD(Number(valor.toFixed(2)));
+    if (Math.abs(valor * 100 - Math.round(valor * 100)) > 1e-8) {
+      throw new BadRequestException('El monto admite como máximo dos decimales.');
+    }
+    return new MontoUSD(valor);
   }
 
   public obtenerValor(): number {
